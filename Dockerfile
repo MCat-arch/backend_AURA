@@ -1,22 +1,25 @@
+# Menggunakan base image python 3.11
 FROM python:3.11-slim
 
-# Mencegah Python membuat file .pyc (opsional tapi bagus untuk docker)
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# HF Spaces mensyaratkan tidak berjalan sebagai root demi keamanan
+RUN useradd -m -u 1000 user
+USER user
 
-WORKDIR /code
+# Tambahkan path instalasi pip lokal ke dalam sistem
+ENV PATH="/home/user/.local/bin:$PATH"
 
-# Copy requirements terlebih dahulu untuk caching docker
-COPY ./requirements.txt /code/requirements.txt
+# Set working directory di dalam container
+WORKDIR /app
 
-# Install dependencies (tensorflow butuh ukuran besar, bersabarlah saat proses ini)
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Copy requirements.txt dan install dependencies
+COPY --chown=user ./requirements.txt requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Copy kode utama aplikasi
-COPY ./app /code/app
+# Copy seluruh folder app (FastAPI) ke dalam folder /app/app
+COPY --chown=user ./app /app/app
 
-# Port standar Fly.io adalah 8080
-EXPOSE 8080
+# Hugging Face Spaces mewajibkan aplikasi berjalan di port 7860
+EXPOSE 7860
 
-# Perintah untuk menjalankan FastAPI
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Jalankan Uvicorn dengan target app.main:app di port 7860
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
